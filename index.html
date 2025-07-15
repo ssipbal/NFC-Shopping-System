@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NFC Inventory & Order System</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
-  .hidden { display: none; }
-  #orderSummaryTable, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; width: 100%; }
-  #orderSummaryTable { margin-top: 20px; }
-  button { padding: 10px 20px; margin: 5px; cursor: pointer; }
-  #adminStockTable, th, td { border: 1px solid #aaa; border-collapse: collapse; padding: 8px; width: 100%; }
-  #adminStockTable { margin-top: 20px; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFC Inventory & Order System</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 600px; }
+    .hidden { display: none; }
+    #orderSummaryTable, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; width: 100%; }
+    #orderSummaryTable { margin-top: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+  </style>
 </head>
 <body>
 
@@ -22,38 +20,16 @@
   <button id="adminBtn">Admin</button>
 </div>
 
-<!-- Admin Login -->
 <div id="adminLogin" class="hidden">
   <h2>Admin Login</h2>
   <input type="password" id="adminCodeInput" placeholder="Enter Admin Code" />
   <button id="adminLoginBtn">Login</button>
-  <button id="adminBackBtn">Back</button>
+  <button onclick="goBack()">Back</button>
   <div id="adminLoginMsg" style="color:red; margin-top:10px;"></div>
 </div>
 
-<!-- Admin Panel -->
-<div id="adminPanel" class="hidden">
-  <h2>Admin Panel - Stock Management</h2>
-  <table id="adminStockTable">
-    <thead>
-      <tr><th>Item</th><th>Stock</th><th>Price</th><th>Add Stock</th><th>Remove Stock</th><th>Delete Item</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <h3>Add New Item</h3>
-  <input type="text" id="newNfcId" placeholder="NFC ID (no colons, uppercase)" />
-  <input type="text" id="newItemName" placeholder="Item Name" />
-  <input type="number" id="newStock" placeholder="Stock" min="0" />
-  <input type="number" id="newPrice" placeholder="Price" min="0" step="0.01" />
-  <button id="addNewItemBtn">Add Item</button>
-  <button id="adminLogoutBtn" style="margin-top: 20px;">Logout</button>
-  <div id="adminMsg" style="color:green; margin-top:10px;"></div>
-</div>
-
-<!-- Customer Panel -->
 <div id="customerPanel" class="hidden">
   <h2>Customer - Order Summary</h2>
-
   <button id="startNfcScanBtn">Start NFC Scan</button>
 
   <div id="popup" class="hidden" style="border:1px solid #000; padding: 15px; margin-top: 15px; background:#eee;">
@@ -63,82 +39,56 @@
     <input type="number" id="popupQuantity" min="1" value="1" />
     <br /><br />
     <button id="popupSubmitBtn">Add to Order</button>
-    <button id="popupCancelBtn">Cancel</button>
+    <button onclick="hidePopup()">Cancel</button>
   </div>
 
   <table id="orderSummaryTable" class="hidden">
     <thead>
-      <tr><th>Item</th><th>Quantity</th><th>Price</th><th>Total</th><th>Actions</th></tr>
+      <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th>Actions</th></tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <h3 id="orderTotal" class="hidden">Total: ฿0.00</h3>
   <button id="submitOrderBtn" class="hidden">Submit Order</button>
-  <button id="customerLogoutBtn" style="margin-top:20px;">Back to Role Selection</button>
+  <button onclick="goBack()">Back</button>
   <div id="customerMsg" style="color:green; margin-top:10px;"></div>
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbyPa84LG3oNZil0jbUVzhJz1_01wVZlQTWCQuZk1sBUFjNlVjzRlTo5i7tH297ogQZBdw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxeOci4y2xSHeH4ibXBoUBxDvPVTOrzZii3TkwmAQFcfE7Me8oEmD1H4FwectGscdN11Q/exec';
+const ADMIN_CODE = '12345';
+let inventory = [];
+let cart = {};
 
-// Pages
-const landingPage = document.getElementById('landingPage');
-const adminLogin = document.getElementById('adminLogin');
-const adminPanel = document.getElementById('adminPanel');
-const customerPanel = document.getElementById('customerPanel');
-
-// Landing buttons
 document.getElementById('customerBtn').onclick = () => {
-  landingPage.classList.add('hidden');
-  customerPanel.classList.remove('hidden');
+  document.getElementById('landingPage').classList.add('hidden');
+  document.getElementById('customerPanel').classList.remove('hidden');
   loadInventory();
 };
 
 document.getElementById('adminBtn').onclick = () => {
-  landingPage.classList.add('hidden');
-  adminLogin.classList.remove('hidden');
-  document.getElementById('adminCodeInput').value = '';
-  document.getElementById('adminLoginMsg').textContent = '';
+  document.getElementById('landingPage').classList.add('hidden');
+  document.getElementById('adminLogin').classList.remove('hidden');
 };
 
-// Admin login
 document.getElementById('adminLoginBtn').onclick = () => {
   const code = document.getElementById('adminCodeInput').value;
-  if (code === '12345') {
-    adminLogin.classList.add('hidden');
-    adminPanel.classList.remove('hidden');
-    loadInventoryAdmin();
+  if (code === ADMIN_CODE) {
+    alert('Admin access granted. (Admin panel not implemented in this version)');
   } else {
     document.getElementById('adminLoginMsg').textContent = 'Incorrect code';
   }
 };
 
-document.getElementById('adminBackBtn').onclick = () => {
-  adminLogin.classList.add('hidden');
-  landingPage.classList.remove('hidden');
-};
+function goBack() {
+  document.getElementById('landingPage').classList.remove('hidden');
+  document.getElementById('customerPanel').classList.add('hidden');
+  document.getElementById('adminLogin').classList.add('hidden');
+  cart = {};
+  updateOrderSummary();
+}
 
-// Customer logout
-document.getElementById('customerLogoutBtn').onclick = () => {
-  customerPanel.classList.add('hidden');
-  landingPage.classList.remove('hidden');
-  clearOrder();
-};
-
-// Admin logout
-document.getElementById('adminLogoutBtn').onclick = () => {
-  adminPanel.classList.add('hidden');
-  landingPage.classList.remove('hidden');
-  document.getElementById('adminMsg').textContent = '';
-};
-
-// Global inventory array for customer and admin
-let inventory = [];
-// Customer cart object { nfcId: {ItemName, Price, Quantity} }
-let cart = {};
-
-// Fetch inventory from backend
 async function loadInventory() {
   try {
     const res = await fetch(API_URL);
@@ -148,121 +98,25 @@ async function loadInventory() {
   }
 }
 
-// For Admin view — load inventory and display stock table
-async function loadInventoryAdmin() {
-  try {
-    const res = await fetch(API_URL);
-    inventory = await res.json();
-    renderAdminTable();
-  } catch (e) {
-    alert('Failed to load inventory.');
-  }
-}
-
-// Render Admin stock table
-function renderAdminTable() {
-  const tbody = document.querySelector('#adminStockTable tbody');
-  tbody.innerHTML = '';
-  inventory.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${item.ItemName}</td>
-      <td>${item.Stock}</td>
-      <td>฿${item.Price}</td>
-      <td><button onclick="addStock('${item.NFC_ID}')">+ Add</button></td>
-      <td><button onclick="removeStock('${item.NFC_ID}')">- Remove</button></td>
-      <td><button onclick="deleteItem('${item.NFC_ID}')">Delete</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Admin actions
-async function addStock(nfcId) {
-  const amount = prompt('Enter amount to add:', '1');
-  const num = parseInt(amount);
-  if (isNaN(num) || num <= 0) return alert('Invalid amount');
-  await updateStock(nfcId, num);
-}
-
-async function removeStock(nfcId) {
-  const amount = prompt('Enter amount to remove:', '1');
-  const num = parseInt(amount);
-  if (isNaN(num) || num <= 0) return alert('Invalid amount');
-  await updateStock(nfcId, -num);
-}
-
-async function deleteItem(nfcId) {
-  if (!confirm('Delete this item?')) return;
-  try {
-    await updateStock(nfcId, -999999); // set stock to 0 to delete
-    alert('Item deleted (stock set to 0)');
-    loadInventoryAdmin();
-  } catch {
-    alert('Failed to delete item');
-  }
-}
-
-// Update stock helper
-async function updateStock(nfcId, amountChange) {
-  const item = inventory.find(i => i.NFC_ID === nfcId);
-  if (!item) return alert('Item not found');
-
-  let newStock = parseInt(item.Stock) + amountChange;
-  if (newStock < 0) newStock = 0;
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cart: [{ nfcId, quantity: newStock }]
-      })
-    });
-    const text = await res.text();
-    if (text.includes('Order successful')) {
-      document.getElementById('adminMsg').textContent = `Stock updated for ${item.ItemName}`;
-      loadInventoryAdmin();
-    } else {
-      alert('Failed to update stock: ' + text);
-    }
-  } catch (e) {
-    alert('Failed to update stock');
-  }
-}
-
-// CUSTOMER SIDE - NFC scan
-
 document.getElementById('startNfcScanBtn').onclick = async () => {
   if ('NDEFReader' in window) {
     try {
       const ndef = new NDEFReader();
       await ndef.scan();
-      ndef.onreadingerror = () => {
-        alert('Cannot read NFC tag.');
-      };
+      alert('NFC scanning started. Tap your product tags.');
       ndef.onreading = event => {
-        let nfcId = event.serialNumber || '';
-        nfcId = nfcId.toUpperCase().replace(/:/g, '');
-        simulateScan(nfcId);
+        let nfcId = (event.serialNumber || '').toUpperCase().replace(/:/g, '');
+        const product = inventory.find(p => p.NFC_ID === nfcId);
+        if (product) showPopup(product);
+        else alert('Product not found for NFC ID: ' + nfcId);
       };
-      alert('NFC scan started. Tap your product tags.');
     } catch (error) {
-      alert('NFC scanning error: ' + error.message);
+      alert('NFC scan error: ' + error.message);
     }
   } else {
-    alert('Web NFC is not supported in this browser.');
+    alert('Web NFC not supported in this browser.');
   }
 };
-
-function simulateScan(nfcId) {
-  const product = inventory.find(p => p.NFC_ID === nfcId);
-  if (!product) {
-    alert('Product not found for NFC ID: ' + nfcId);
-    return;
-  }
-  showPopup(product);
-}
 
 function showPopup(product) {
   document.getElementById('popupProductName').textContent = product.ItemName;
@@ -276,39 +130,19 @@ function showPopup(product) {
 }
 
 document.getElementById('popupSubmitBtn').onclick = () => {
-  const qty = parseInt(document.getElementById('popupQuantity').value);
-  if (isNaN(qty) || qty <= 0) return alert('Invalid quantity');
-
   const popup = document.getElementById('popup');
   const nfcId = popup.dataset.nfcId;
   const price = parseFloat(popup.dataset.price);
   const itemName = popup.dataset.itemName;
-
-  const product = inventory.find(p => p.NFC_ID === nfcId);
-  if (!product) return alert('Product not found');
-  if (qty > product.Stock) return alert(`Only ${product.Stock} left in stock`);
-
-  addToCart(nfcId, itemName, price, qty);
-  popup.classList.add('hidden');
+  const qty = parseInt(document.getElementById('popupQuantity').value);
+  if (!qty || qty < 1) return alert('Invalid quantity');
+  cart[nfcId] = { itemName, price, quantity: qty };
   updateOrderSummary();
+  hidePopup();
 };
 
-document.getElementById('popupCancelBtn').onclick = () => {
+function hidePopup() {
   document.getElementById('popup').classList.add('hidden');
-};
-
-function addToCart(nfcId, itemName, price, quantity) {
-  if (cart[nfcId]) {
-    let newQty = cart[nfcId].quantity + quantity;
-    const product = inventory.find(p => p.NFC_ID === nfcId);
-    if (newQty > product.Stock) {
-      alert(`Cannot add. Only ${product.Stock} in stock.`);
-      return;
-    }
-    cart[nfcId].quantity = newQty;
-  } else {
-    cart[nfcId] = { itemName, price, quantity };
-  }
 }
 
 function updateOrderSummary() {
@@ -316,31 +150,23 @@ function updateOrderSummary() {
   const table = document.getElementById('orderSummaryTable');
   const totalEl = document.getElementById('orderTotal');
   const submitBtn = document.getElementById('submitOrderBtn');
-
   tbody.innerHTML = '';
   let total = 0;
-  let hasItems = false;
-
   for (const nfcId in cart) {
-    hasItems = true;
     const item = cart[nfcId];
     const rowTotal = item.price * item.quantity;
     total += rowTotal;
-
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${item.itemName}</td>
-      <td>
-        <input type="number" min="1" max="${getStock(nfcId)}" value="${item.quantity}" data-nfcid="${nfcId}" class="qtyInput" />
-      </td>
+      <td>${item.quantity}</td>
       <td>฿${item.price}</td>
       <td>฿${rowTotal.toFixed(2)}</td>
-      <td><button data-nfcid="${nfcId}" class="deleteBtn">Delete</button></td>
+      <td><button onclick="removeFromCart('${nfcId}')">Delete</button></td>
     `;
     tbody.appendChild(tr);
   }
-
-  if (hasItems) {
+  if (total > 0) {
     table.classList.remove('hidden');
     totalEl.classList.remove('hidden');
     submitBtn.classList.remove('hidden');
@@ -350,56 +176,19 @@ function updateOrderSummary() {
     totalEl.classList.add('hidden');
     submitBtn.classList.add('hidden');
   }
-
-  // Qty inputs event
-  document.querySelectorAll('.qtyInput').forEach(input => {
-    input.onchange = () => {
-      const nfcId = input.dataset.nfcid;
-      let val = parseInt(input.value);
-      if (isNaN(val) || val < 1) val = 1;
-      if (val > getStock(nfcId)) {
-        alert(`Only ${getStock(nfcId)} in stock`);
-        val = getStock(nfcId);
-      }
-      input.value = val;
-      cart[nfcId].quantity = val;
-      updateOrderSummary();
-    };
-  });
-
-  // Delete buttons event
-  document.querySelectorAll('.deleteBtn').forEach(btn => {
-    btn.onclick = () => {
-      const nfcId = btn.dataset.nfcid;
-      delete cart[nfcId];
-      updateOrderSummary();
-    };
-  });
 }
 
-function getStock(nfcId) {
-  const product = inventory.find(p => p.NFC_ID === nfcId);
-  return product ? Number(product.Stock) : 0;
-}
-
-function clearOrder() {
-  cart = {};
+function removeFromCart(nfcId) {
+  delete cart[nfcId];
   updateOrderSummary();
 }
 
-// Submit order
 document.getElementById('submitOrderBtn').onclick = async () => {
-  if (Object.keys(cart).length === 0) {
-    alert('No items in order.');
-    return;
-  }
-
-  // Prepare cart for backend [{nfcId, quantity}, ...]
+  if (Object.keys(cart).length === 0) return alert('Cart is empty');
   const orderArray = Object.entries(cart).map(([nfcId, item]) => ({
     nfcId,
     quantity: item.quantity
   }));
-
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -409,13 +198,14 @@ document.getElementById('submitOrderBtn').onclick = async () => {
     const text = await res.text();
     if (text.includes('Order successful')) {
       alert('Order placed successfully!');
-      clearOrder();
-      loadInventory(); // Refresh stock after order
+      cart = {};
+      updateOrderSummary();
+      loadInventory();
     } else {
       alert('Order failed: ' + text);
     }
   } catch (e) {
-    alert('Order submission failed.');
+    alert('Order submission failed: ' + e.message);
   }
 };
 </script>
