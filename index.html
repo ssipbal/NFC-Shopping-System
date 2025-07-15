@@ -41,7 +41,7 @@
     <tbody></tbody>
   </table>
   <h3>Add New Item</h3>
-  <input type="text" id="newNfcId" placeholder="NFC ID (no colons)" />
+  <input type="text" id="newNfcId" placeholder="NFC ID (no colons, uppercase)" />
   <input type="text" id="newItemName" placeholder="Item Name" />
   <input type="number" id="newStock" placeholder="Stock" min="0" />
   <input type="number" id="newPrice" placeholder="Price" min="0" step="0.01" />
@@ -54,9 +54,7 @@
 <div id="customerPanel" class="hidden">
   <h2>Customer - Order Summary</h2>
 
-  <label>Scan Product (Enter NFC ID):</label><br />
-  <input type="text" id="nfcInput" placeholder="Enter NFC ID, e.g. 04F1458B320289" />
-  <button id="scanBtn">Scan</button>
+  <button id="startNfcScanBtn">Start NFC Scan</button>
 
   <div id="popup" class="hidden" style="border:1px solid #000; padding: 15px; margin-top: 15px; background:#eee;">
     <h3 id="popupProductName"></h3>
@@ -82,7 +80,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbwoQm8BKVh2xoyrjxDJ-PEuyvq7NeHwNtS0mqSjUp_E3_DTN8pM3tl0aMnG2W3e-zD-5A/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxeOci4y2xSHeH4ibXBoUBxDvPVTOrzZii3TkwmAQFcfE7Me8oEmD1H4FwectGscdN11Q/exec';
 
 // Pages
 const landingPage = document.getElementById('landingPage');
@@ -197,8 +195,7 @@ async function removeStock(nfcId) {
 async function deleteItem(nfcId) {
   if (!confirm('Delete this item?')) return;
   try {
-    // For simplicity, remove stock to 0 will effectively delete item for now
-    await updateStock(nfcId, -999999);
+    await updateStock(nfcId, -999999); // set stock to 0 to delete
     alert('Item deleted (stock set to 0)');
     loadInventoryAdmin();
   } catch {
@@ -208,7 +205,6 @@ async function deleteItem(nfcId) {
 
 // Update stock helper
 async function updateStock(nfcId, amountChange) {
-  // Fetch current item
   const item = inventory.find(i => i.NFC_ID === nfcId);
   if (!item) return alert('Item not found');
 
@@ -216,10 +212,6 @@ async function updateStock(nfcId, amountChange) {
   if (newStock < 0) newStock = 0;
 
   try {
-    // Google Apps Script POST update stock by resubmitting whole stock row
-    // We'll send a cart-like array with 1 item quantity change (negative or positive)
-
-    // Create "fake" cart with quantity = newStock
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -239,20 +231,32 @@ async function updateStock(nfcId, amountChange) {
   }
 }
 
-// CUSTOMER SIDE
+// CUSTOMER SIDE - NFC scan
 
-// On Scan button clicked (simulate scan by NFC ID input)
-document.getElementById('scanBtn').onclick = () => {
-  const nfcInput = document.getElementById('nfcInput').value.trim();
-  if (!nfcInput) return alert('Please enter NFC ID');
-  simulateScan(nfcInput);
-  document.getElementById('nfcInput').value = '';
+document.getElementById('startNfcScanBtn').onclick = async () => {
+  if ('NDEFReader' in window) {
+    try {
+      const ndef = new NDEFReader();
+      await ndef.scan();
+      ndef.onreadingerror = () => {
+        alert('Cannot read NFC tag.');
+      };
+      ndef.onreading = event => {
+        let nfcId = event.serialNumber || '';
+        nfcId = nfcId.toUpperCase().replace(/:/g, '');
+        simulateScan(nfcId);
+      };
+      alert('NFC scan started. Tap your product tags.');
+    } catch (error) {
+      alert('NFC scanning error: ' + error.message);
+    }
+  } else {
+    alert('Web NFC is not supported in this browser.');
+  }
 };
 
-// Simulate scan — lookup product by NFC ID and show popup
 function simulateScan(nfcId) {
-  const id = nfcId.toUpperCase().replace(/:/g, '');
-  const product = inventory.find(p => p.NFC_ID.toUpperCase().replace(/:/g, '') === id);
+  const product = inventory.find(p => p.NFC_ID === nfcId);
   if (!product) {
     alert('Product not found for NFC ID: ' + nfcId);
     return;
@@ -260,32 +264,32 @@ function simulateScan(nfcId) {
   showPopup(product);
 }
 
-// Show popup for quantity input
 function showPopup(product) {
   document.getElementById('popupProductName').textContent = product.ItemName;
   document.getElementById('popupPrice').textContent = product.Price;
   document.getElementById('popupQuantity').value = 1;
-  document.getElementById('popup').dataset.nfcId = product.NFC_ID;
-  document.getElementById('popup').dataset.price = product.Price;
-  document.getElementById('popup').dataset.itemName = product.ItemName;
-  document.getElementById('popup').classList.remove('hidden');
+  const popup = document.getElementById('popup');
+  popup.dataset.nfcId = product.NFC_ID;
+  popup.dataset.price = product.Price;
+  popup.dataset.itemName = product.ItemName;
+  popup.classList.remove('hidden');
 }
 
-// Popup buttons
 document.getElementById('popupSubmitBtn').onclick = () => {
   const qty = parseInt(document.getElementById('popupQuantity').value);
   if (isNaN(qty) || qty <= 0) return alert('Invalid quantity');
-  const nfcId = document.getElementById('popup').dataset.nfcId;
-  const price = parseFloat(document.getElementById('popup').dataset.price);
-  const itemName = document.getElementById('popup').dataset.itemName;
 
-  // Check stock available
+  const popup = document.getElementById('popup');
+  const nfcId = popup.dataset.nfcId;
+  const price = parseFloat(popup.dataset.price);
+  const itemName = popup.dataset.itemName;
+
   const product = inventory.find(p => p.NFC_ID === nfcId);
   if (!product) return alert('Product not found');
   if (qty > product.Stock) return alert(`Only ${product.Stock} left in stock`);
 
   addToCart(nfcId, itemName, price, qty);
-  document.getElementById('popup').classList.add('hidden');
+  popup.classList.add('hidden');
   updateOrderSummary();
 };
 
@@ -293,7 +297,6 @@ document.getElementById('popupCancelBtn').onclick = () => {
   document.getElementById('popup').classList.add('hidden');
 };
 
-// Add to cart
 function addToCart(nfcId, itemName, price, quantity) {
   if (cart[nfcId]) {
     let newQty = cart[nfcId].quantity + quantity;
@@ -308,7 +311,6 @@ function addToCart(nfcId, itemName, price, quantity) {
   }
 }
 
-// Update order summary table
 function updateOrderSummary() {
   const tbody = document.querySelector('#orderSummaryTable tbody');
   const table = document.getElementById('orderSummaryTable');
@@ -349,7 +351,7 @@ function updateOrderSummary() {
     submitBtn.classList.add('hidden');
   }
 
-  // Add event listeners to qty inputs and delete buttons
+  // Qty inputs event
   document.querySelectorAll('.qtyInput').forEach(input => {
     input.onchange = () => {
       const nfcId = input.dataset.nfcid;
@@ -365,6 +367,7 @@ function updateOrderSummary() {
     };
   });
 
+  // Delete buttons event
   document.querySelectorAll('.deleteBtn').forEach(btn => {
     btn.onclick = () => {
       const nfcId = btn.dataset.nfcid;
@@ -374,51 +377,47 @@ function updateOrderSummary() {
   });
 }
 
-// Get current stock from inventory for an item
 function getStock(nfcId) {
   const product = inventory.find(p => p.NFC_ID === nfcId);
-  return product ? parseInt(product.Stock) : 0;
+  return product ? Number(product.Stock) : 0;
 }
 
-// Clear order
 function clearOrder() {
   cart = {};
   updateOrderSummary();
-  document.getElementById('customerMsg').textContent = '';
 }
 
-// Submit order button clicked
+// Submit order
 document.getElementById('submitOrderBtn').onclick = async () => {
-  const cartArray = Object.entries(cart).map(([nfcId, item]) => ({
+  if (Object.keys(cart).length === 0) {
+    alert('No items in order.');
+    return;
+  }
+
+  // Prepare cart for backend [{nfcId, quantity}, ...]
+  const orderArray = Object.entries(cart).map(([nfcId, item]) => ({
     nfcId,
     quantity: item.quantity
   }));
-
-  if (cartArray.length === 0) {
-    alert('Cart is empty');
-    return;
-  }
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cart: cartArray })
+      body: JSON.stringify({ cart: orderArray })
     });
     const text = await res.text();
-
-    if (text === 'Order successful') {
-      document.getElementById('customerMsg').textContent = 'Order submitted successfully!';
+    if (text.includes('Order successful')) {
+      alert('Order placed successfully!');
       clearOrder();
-      loadInventory(); // Refresh stock data
+      loadInventory(); // Refresh stock after order
     } else {
       alert('Order failed: ' + text);
     }
   } catch (e) {
-    alert('Failed to submit order');
+    alert('Order submission failed.');
   }
 };
 </script>
-
 </body>
 </html>
